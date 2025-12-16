@@ -1,0 +1,133 @@
+si<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Pagamento de Hipoteca</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/images/favicon-32x32.png">
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.4;color:#1f2937}
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8fafc;margin:0;padding:24px}
+    .card{background:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(31,41,55,0.08);max-width:760px;width:100%;padding:28px}
+    h1{margin:0 0 12px;font-size:20px}
+    form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{font-size:13px;color:#374151}
+    input[type=number], select{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:6px}
+    .full{grid-column:1/-1}
+    .radios{display:flex;gap:12px;align-items:center}
+    .actions{display:flex;gap:8px;justify-content:flex-end}
+    button{padding:10px 14px;border-radius:8px;border:0;cursor:pointer}
+    button.primary{background:#2563eb;color:#fff}
+    button.ghost{background:#eef2ff;color:#111}
+    .results{margin-top:18px;padding:14px;border-radius:8px;background:#f1f5f9}
+    .result-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(31,41,55,0.05)}
+    .result-row:last-child{border-bottom:0}
+    .muted{font-size:13px;color:#6b7280}
+    .error{color:#b91c1c;font-size:13px}
+    .attribution{font-size:11px;text-align:center;margin-top:14px;color:#6b7280}
+    @media (max-width:640px){form{grid-template-columns:1fr}.actions{justify-content:stretch}}
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <h1>Calculadora de Pagamento de Hipoteca</h1>
+
+    <form id="mortgage-form" novalidate>
+      <div class="full">
+        <label for="amount">Montante do Empréstimo (R$)</label>
+        <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="Ex.: 250000">
+        <div id="amount-error" class="error" aria-live="polite"></div>
+      </div>
+
+      <div>
+        <label for="term">Prazo do Empréstimo (anos)</label>
+        <input id="term" name="term" type="number" min="1" step="1" placeholder="Ex.: 30">
+        <div id="term-error" class="error" aria-live="polite"></div>
+      </div>
+
+      <div>
+        <label for="rate">Taxa de Juros Anual (%)</label>
+        <input id="rate" name="rate" type="number" min="0" step="0.01" placeholder="Ex.: 3.5">
+        <div id="rate-error" class="error" aria-live="polite"></div>
+      </div>
+
+      <div class="full">
+        <label>Tipo de Hipoteca</label>
+        <div class="radios">
+          <label><input type="radio" name="type" value="repayment" checked> Amortização (Repayment)</label>
+          <label><input type="radio" name="type" value="interest-only"> Só Juros (Interest-only)</label>
+        </div>
+      </div>
+
+      <div class="full actions">
+        <button type="button" id="clear" class="ghost">Limpar</button>
+        <button type="button" id="calculate" class="primary">Calcular Pagamentos</button>
+      </div>
+    </form>
+
+    <section id="results" class="results" aria-live="polite" hidden>
+    <div class="muted">Seus resultados</div>
+    <div class="result-row"><strong>Prestação mensal</strong><div id="monthly">—</div></div>
+      <div class="result-row"><strong>Total a pagar no prazo</strong><div id="total">—</div></div>
+      <div class="result-row"><strong>Juros totais pagos</strong><div id="interest">—</div></div>
+    </section>
+
+    <div class="attribution">Desafio inspirado em Frontend Mentor — Juanita Polido.</div>
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+    function clearErrors(){['amount-error','term-error','rate-error'].forEach(id=>$(id).textContent='')}
+
+    function validate(amount, term, rate){
+      let ok = true; clearErrors();
+      if(!(amount>0)){ $('amount-error').textContent='Insira um valor do empréstimo válido.'; ok=false }
+      if(!(term>=1)){ $('term-error').textContent='Insira um prazo em anos válido.'; ok=false }
+      if(!(rate>=0)){ $('rate-error').textContent='Insira uma taxa de juro válida.'; ok=false }
+      return ok
+    }
+
+    function calculate(){
+      const amount = parseFloat($('amount').value || '0');
+      const termYears = parseInt($('term').value || '0',10);
+      const annualRate = parseFloat($('rate').value || '0');
+      const type = document.querySelector('input[name="type"]:checked').value;
+
+      if(!validate(amount, termYears, annualRate)) return;
+
+      const months = termYears * 12;
+      const monthlyRate = annualRate / 100 / 12;
+      let monthlyPayment = 0;
+
+      if(type === 'interest-only'){
+        monthlyPayment = amount * monthlyRate;
+      } else {
+        if(monthlyRate === 0){ monthlyPayment = amount / months }
+        else {
+          const factor = Math.pow(1 + monthlyRate, months);
+          monthlyPayment = amount * monthlyRate * factor / (factor - 1);
+        }
+      }
+
+      const totalPaid = monthlyPayment * months;
+      const totalInterest = totalPaid - amount;
+
+      $('monthly').textContent = fmt(monthlyPayment);
+      $('total').textContent = fmt(totalPaid);
+      $('interest').textContent = fmt(totalInterest);
+      $('results').hidden = false;
+    }
+
+    $('calculate').addEventListener('click', calculate);
+    $('clear').addEventListener('click', ()=>{
+      $('mortgage-form').reset(); clearErrors(); $('results').hidden = true;
+      ['monthly','total','interest'].forEach(id=>$(id).textContent='—');
+    });
+
+    // Allow Enter to calculate when focused on inputs
+    document.getElementById('mortgage-form').addEventListener('submit', e=>{ e.preventDefault(); calculate(); });
+  </script>
+</body>
+</html>
